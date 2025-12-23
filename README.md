@@ -73,21 +73,20 @@ Follow these steps to run DataCrypt locally on your machine.
 
 1.  **Clone the repository**
    ```bash
-    git clone [https://github.com/cxgx4/DataCryptic.git](https://github.com/cxgx4/DataCryptic.git)
-    cd failvault
+    git clone https://github.com/cxgx4/DataCryptic.git
+    cd DataCryptic
+    cd frontend
 ```
 
 2.  **Install Dependencies**
     ```bash
     npm install
-    # or
-    yarn install
-```
+
 
 3.  **Run the Development Server**
     ```bash
     npm run dev
-```
+
 
 4.  **Launch**
     Open [http://localhost:3000](http://localhost:3000) in your browser.
@@ -102,13 +101,15 @@ Follow these steps to run DataCrypt locally on your machine.
 
 ---
 
-## 🤝 Team & Contribution
+🤝 Team & Contributions
 
-Built for **CodeQuest 2025**.
+Built for CodeQuest 2025
 
-* **Cherry Ghosh** 
-* **Debdutta Ghosh** 
-* **Debasmita Chatterjee** 
+| **Cherry Ghosh** | **Debdutta Ghosh** | **Debasmita Chatterjee** |
+| :---: | :---: | :---: |
+| Developer | Developer | Developer |
+| [GitHub](https://github.com/cxgx4) | [GitHub](https://github.com/debdutta1777) | [GitHub](https://github.com/debasmita) |
+
 
 ---
 
