@@ -108,7 +108,7 @@ Built for CodeQuest 2025
 | **Cherry Ghosh** | **Debdutta Ghosh** | **Debasmita Chatterjee** |
 | :---: | :---: | :---: |
 | Developer | Developer | Developer |
-| [GitHub](https://github.com/cxgx4) | [GitHub](https://github.com/debdutta1777) | [GitHub](https://github.com/debasmita) |
+| [GitHub](https://github.com/cxgx4) | [GitHub](https://github.com/debdutta177) | [GitHub](https://github.com/debasmita) |
 
 
 ---
