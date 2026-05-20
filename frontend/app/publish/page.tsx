@@ -75,6 +75,11 @@ export default function PublishPage() {
   const [price, setPrice] = useState("0.0001");
   const [category, setCategory] = useState("Physics");
 
+  // Supporting Documents State
+  const [supportingFiles, setSupportingFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+
   useEffect(() => {
     checkWalletConnection();
   }, []);
@@ -111,7 +116,69 @@ export default function PublishPage() {
     }
   };
 
+  // --- File Helpers ---
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    processFiles(selected);
+    e.target.value = "";
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    processFiles(dropped);
+  };
+
+  const processFiles = (incoming: File[]) => {
+    const valid = incoming.filter((f) => f.size <= 25 * 1024 * 1024);
+    const oversized = incoming.filter((f) => f.size > 25 * 1024 * 1024);
+    if (oversized.length > 0) {
+      setFileError(`${oversized.map((f) => f.name).join(", ")} exceed the 25 MB limit and were skipped.`);
+    } else {
+      setFileError("");
+    }
+    setSupportingFiles((prev) => {
+      const combined = [...prev, ...valid];
+      const seen = new Set<string>();
+      return combined.filter((f) => {
+        const key = f.name + f.size;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    });
+  };
+
+  const removeFile = (index: number) => {
+    setSupportingFiles((prev) => prev.filter((_, i) => i !== index));
+    setFileError("");
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getFileIcon = (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (ext === "pdf") return "📄";
+    if (["docx", "doc"].includes(ext || "")) return "📝";
+    if (["csv", "xlsx"].includes(ext || "")) return "📊";
+    if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext || "")) return "🖼️";
+    return "📎";
+  };
+
+  // --- Mint ---
   const mintNFT = async () => {
+    // Validate supporting documents (mandatory)
+    if (supportingFiles.length === 0) {
+      setFileError("Please attach at least one supporting document before minting.");
+      document.getElementById("supporting-docs-section")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     try {
       setIsLoading(true);
       setStatus("Starting mint process...");
@@ -158,7 +225,6 @@ export default function PublishPage() {
         priceInWei,
         {
           gasLimit: 3000000,
-          // Explicitly set fees with a high floor to handle Polygon Amoy's minimum requirements
           maxPriorityFeePerGas: feeData.maxPriorityFeePerGas
             ? (feeData.maxPriorityFeePerGas * 2n > ethers.parseUnits("30", "gwei")
               ? feeData.maxPriorityFeePerGas * 2n
@@ -428,23 +494,127 @@ Example:
         {/* Right Column: Sidebar */}
         <aside className="space-y-8">
 
-          {/* Upload Card */}
-          <div className="rounded-[32px] border border-white/10 bg-[#0A0C14]/70 p-8 space-y-5 backdrop-blur-xl shadow-lg">
+          {/* Upload Card — MANDATORY */}
+          <div
+            id="supporting-docs-section"
+            className={`rounded-[32px] border bg-[#0A0C14]/70 p-8 space-y-5 backdrop-blur-xl shadow-lg transition-all duration-300 ${
+              fileError && supportingFiles.length === 0
+                ? "border-red-500/50 shadow-[0_0_30px_-10px_rgba(239,68,68,0.35)]"
+                : supportingFiles.length > 0
+                ? "border-emerald-500/30 shadow-[0_0_30px_-10px_rgba(16,185,129,0.2)]"
+                : "border-white/10"
+            }`}
+          >
+            {/* Header */}
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-lg text-white">Attach Supporting Documents</h3>
-              <span className="text-[10px] uppercase tracking-wider bg-slate-800/60 text-slate-300 px-3 py-1.5 rounded-full border border-white/5 backdrop-blur-md">Optional</span>
+              <span className="text-[10px] uppercase tracking-wider bg-red-500/20 text-red-300 px-3 py-1.5 rounded-full border border-red-500/30 backdrop-blur-md font-semibold">
+                Required
+              </span>
             </div>
 
-            <label htmlFor="file-upload" className="border-2 border-dashed border-slate-700/60 rounded-2xl p-10 flex flex-col items-center justify-center text-center gap-4 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all cursor-pointer group backdrop-blur-md">
-              <div className="w-14 h-14 rounded-full bg-slate-900/70 flex items-center justify-center group-hover:bg-violet-500/20 transition-colors backdrop-blur-md">
-                <UploadCloud className="w-7 h-7 text-slate-400 group-hover:text-violet-400" />
+            {/* Drop Zone */}
+            <label
+              htmlFor="file-upload"
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              className={`border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center gap-3 transition-all cursor-pointer group backdrop-blur-md ${
+                isDragging
+                  ? "border-violet-400/70 bg-violet-500/10 scale-[1.01]"
+                  : fileError && supportingFiles.length === 0
+                  ? "border-red-500/50 bg-red-500/5 hover:border-red-400/60"
+                  : supportingFiles.length > 0
+                  ? "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-400/50"
+                  : "border-slate-700/60 hover:border-violet-500/40 hover:bg-violet-500/5"
+              }`}
+            >
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors backdrop-blur-md ${
+                isDragging
+                  ? "bg-violet-500/30"
+                  : fileError && supportingFiles.length === 0
+                  ? "bg-red-500/20"
+                  : supportingFiles.length > 0
+                  ? "bg-emerald-500/20"
+                  : "bg-slate-900/70 group-hover:bg-violet-500/20"
+              }`}>
+                <UploadCloud className={`w-6 h-6 transition-colors ${
+                  isDragging
+                    ? "text-violet-300"
+                    : fileError && supportingFiles.length === 0
+                    ? "text-red-400"
+                    : supportingFiles.length > 0
+                    ? "text-emerald-400"
+                    : "text-slate-400 group-hover:text-violet-400"
+                }`} />
               </div>
               <div>
-                <p className="text-base text-slate-300 font-semibold">Click to upload files</p>
-                <p className="text-sm text-slate-500 mt-2">PDF, DOCX, CSV, IMG (Max 25MB)</p>
+                <p className="text-sm text-slate-300 font-semibold">
+                  {isDragging ? "Drop files here" : "Click to upload or drag & drop"}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">PDF, DOCX, CSV, IMG (Max 25 MB each)</p>
               </div>
-              <input id="file-upload" type="file" className="hidden" />
+              <input
+                id="file-upload"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.csv,.png,.jpg,.jpeg,.gif,.webp,.xlsx"
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </label>
+
+            {/* File Error Message */}
+            {fileError && (
+              <div className="flex items-start gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{fileError}</span>
+              </div>
+            )}
+
+            {/* Uploaded Files List */}
+            {supportingFiles.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-400" />
+                  <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider">
+                    {supportingFiles.length} file{supportingFiles.length > 1 ? "s" : ""} attached
+                  </p>
+                </div>
+                <div className="space-y-2 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                  {supportingFiles.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-xl px-4 py-3 group/file hover:bg-white/8 transition-colors"
+                    >
+                      <span className="text-lg shrink-0">{getFileIcon(file)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-200 font-medium truncate">{file.name}</p>
+                        <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(idx)}
+                        className="shrink-0 w-7 h-7 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 flex items-center justify-center transition-all opacity-0 group-hover/file:opacity-100"
+                        title="Remove file"
+                        aria-label={`Remove ${file.name}`}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Hint when no files yet */}
+            {supportingFiles.length === 0 && !fileError && (
+              <p className="text-xs text-slate-500 text-center">
+                ⚠️ At least 1 document is required to mint
+              </p>
+            )}
           </div>
 
           {/* Process Card */}
